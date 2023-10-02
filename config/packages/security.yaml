@@ -5,26 +5,43 @@ security:
     # https://symfony.com/doc/current/security.html#loading-the-user-the-user-provider
     providers:
         # used to reload user from session & other features (e.g. switch_user)
+        # app_user_provider:
+        #     entity:
+        #         class: App\Entity\User
+        #         property: username
         app_user_provider:
-            entity:
-                class: App\Entity\User
-                property: username
+            id: App\Security\UserProvider
+    # rate_limiter:
+    #     username_ip_login:
+    #         policy: token_bucket
+    #         limit: 5
+    #         rate: { interval: '5 minutes' }
+    #     ip_login:
+    #         policy: sliding_window
+    #         limit: 50
+    #         interval: '15 minutes'
     firewalls:
         dev:
             pattern: ^/(_(profiler|wdt)|css|images|js)/
             security: false
         main:
+            pattern: ^/profile
             lazy: true
-            provider: app_user_provider
+            # provider: app_user_provider
+            stateless: true
+            entry_point: App\Security\AuthenticationEntryPoint
 
-            form_login:
-                # "app_login" is the name of the route created previously
-                login_path: app_login
-                check_path: app_login
-                enable_csrf: true
+            # form_login:
+            #     # "app_login" is the name of the route created previously
+            #     login_path: app_login
+            #     check_path: app_login
+            #     enable_csrf: true
 
-            logout:
-                path: app_logout
+            # logout:
+            #     path: app_logout
+
+            custom_authenticators:
+                - App\Security\JwtAuthenticator
 
             # activate different ways to authenticate
             # https://symfony.com/doc/current/security.html#the-firewall
