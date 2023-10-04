@@ -2,19 +2,30 @@
 
 namespace App\Security;
 
+function base64UrlEncode($data) {
+    return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
+}
+
 class JwtManager
 {
+    public function __construct(private string $secret)
+    {
+    }
+
+    protected function createHash($headerAndPlayload): string
+    {
+        return base64UrlEncode(hash_hmac("sha256", $headerAndPlayload, $this->secret, true));
+    }
+
     /**
      * @return JWT
      */
     public function createJwt(array $payload): string
     {
-        $headerAndPlayload = base64_encode('{"alg": "HS256","typ": "JWT"}') . '.'
-            . base64_encode(json_encode([
-                'iat' => time() + 2592000,
-                ...$payload,
-            ]));
-        $hash = hash_hmac("sha256", $headerAndPlayload, $_ENV['APP_SECRET']);
+        if (!array_key_exists('iat', $payload)) $payload['iat'] = time() + 2592000;
+        $headerAndPlayload = base64UrlEncode('{"alg":"HS256","typ":"JWT"}') . '.'
+            . base64UrlEncode(json_encode($payload));
+        $hash = $this->createHash($headerAndPlayload);
         $jwt = $headerAndPlayload . '.' . $hash;
 
         return $jwt;
@@ -26,16 +37,13 @@ class JwtManager
     public function verifyJwt(string $token): array
     {
         // 0. Verify the token format
-        if (null === $token) {
-            throw new \Exception('No token provided.');
-        }
         $parts = explode('.', $token);
         if (count($parts) !== 3) {
             throw new \Exception('Invalid JWT.');
         }
 
         // 1. Verify the signature of the JWT
-        $hash = hash_hmac("sha256", $parts[0] . "." . $parts[1], $_ENV['APP_SECRET']);
+        $hash = $this->createHash($parts[0] . "." . $parts[1]);
         if ($parts[2] !== $hash) {
             throw new \Exception('Invalid hash.');
         }
